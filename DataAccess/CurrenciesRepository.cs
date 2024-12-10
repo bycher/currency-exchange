@@ -68,4 +68,43 @@ public class CurrenciesRepository
 
         return currency;
     }
+
+    public Currency? AddCurrency(Currency currency)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        var selectCommand = connection.CreateCommand();
+        selectCommand.CommandText =
+        @"
+            SELECT ID FROM Currencies
+            WHERE Code=@code;
+        ";
+        selectCommand.Parameters.AddWithValue("@code", currency.Code);
+
+        var id = selectCommand.ExecuteScalar();
+        if (id != null)
+            return null;
+        
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText =
+        @"
+            INSERT INTO Currencies (Code, FullName, Sign)
+            VALUES (@code, @fullName, @sign)
+            RETURNING ID;
+        ";
+        insertCommand.Parameters.AddWithValue("@code", currency.Code);
+        insertCommand.Parameters.AddWithValue("@fullName", currency.FullName);
+        insertCommand.Parameters.AddWithValue("@sign", currency.Sign);
+
+        id = insertCommand.ExecuteScalar()!;
+
+        return new Currency
+        {
+            ID = Convert.ToInt32(id),
+            Code = currency.Code,
+            FullName = currency.FullName,
+            Sign = currency.Sign
+        };
+    }
 }
