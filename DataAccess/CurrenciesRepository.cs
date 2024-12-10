@@ -38,4 +38,34 @@ public class CurrenciesRepository
         }
         return currencies;
     }
+
+    public Currency? GetCurrency(string code)
+    {
+        Currency? currency = null;
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        
+        var command = connection.CreateCommand();
+        command.CommandText =
+        @"
+            SELECT ID, Code, FullName, Sign FROM Currencies
+            WHERE Code=@code;
+        ";
+        command.Parameters.AddWithValue("@code", code);
+
+        using var reader = command.ExecuteReader();
+        if (reader.Read())
+        {
+            currency = new Currency
+            {
+                ID = reader.GetInt32(0),
+                Code = reader.GetString(1),
+                FullName = reader.GetString(2),
+                Sign = reader.GetString(3)
+            };
+        }
+
+        return currency;
+    }
 }
