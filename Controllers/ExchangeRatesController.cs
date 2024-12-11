@@ -29,4 +29,29 @@ public class ExchangeRatesController : ControllerBase
             return StatusCode(500, ex.Message);
         }
     }
+
+    [HttpGet("exchangeRate/{codePair?}")]
+    public ActionResult<ExchangeRate> GetExchangeRate(string? codePair)
+    {
+        if (string.IsNullOrWhiteSpace(codePair) || codePair.Length != 6)
+            return BadRequest("Specify the currency pair in the format 'XXXYYY', " +
+                              "where 'XXX', 'YYY' are currency codes");
+
+        var baseCode = codePair[..3];
+        var targetCode = codePair[3..];
+
+        ExchangeRate? exchangeRate;
+        try
+        {
+            exchangeRate = _exchangeRatesRepository.GetExchangeRate(baseCode, targetCode);
+        }
+        catch (SqliteException ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+        if (exchangeRate is null)
+            return NotFound("Exchange rate for the pair was not found");
+        
+        return Ok(exchangeRate);
+    }
 }
