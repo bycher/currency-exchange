@@ -22,7 +22,8 @@ public class CurrenciesRepository
         var command = connection.CreateCommand();
         command.CommandText =
         @"
-            SELECT ID, Code, FullName, Sign FROM Currencies;
+            SELECT ID, Code, FullName, Sign
+            FROM Currencies;
         ";
         
         using var reader = command.ExecuteReader();
@@ -49,7 +50,8 @@ public class CurrenciesRepository
         var command = connection.CreateCommand();
         command.CommandText =
         @"
-            SELECT ID, Code, FullName, Sign FROM Currencies
+            SELECT ID, Code, FullName, Sign
+            FROM Currencies
             WHERE Code=@code;
         ";
         command.Parameters.AddWithValue("@code", code);
@@ -77,7 +79,8 @@ public class CurrenciesRepository
         var selectCommand = connection.CreateCommand();
         selectCommand.CommandText =
         @"
-            SELECT ID FROM Currencies
+            SELECT ID
+            FROM Currencies
             WHERE Code=@code;
         ";
         selectCommand.Parameters.AddWithValue("@code", currency.Code);

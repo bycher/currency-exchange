@@ -2,11 +2,9 @@ using CurrencyExchange.DataAccess;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton(p =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    return new CurrenciesRepository(connectionString!);
-});
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddSingleton(p => new CurrenciesRepository(connectionString!));
+builder.Services.AddSingleton(p => new ExchangeRatesRepository(connectionString!));
 builder.Services.AddControllers();
 
 var app = builder.Build();
