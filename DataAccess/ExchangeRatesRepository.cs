@@ -6,10 +6,12 @@ namespace CurrencyExchange.DataAccess;
 public class ExchangeRatesRepository
 {
     private readonly string _connectionString;
+    private readonly CurrenciesRepository _currenciesRepository;
 
-    public ExchangeRatesRepository(string connectionString)
+    public ExchangeRatesRepository(string connectionString, CurrenciesRepository currenciesRepository)
     {
         _connectionString = connectionString;
+        _currenciesRepository = currenciesRepository;
     }
 
     public List<ExchangeRate> GetAllExchangeRates()
@@ -61,6 +63,44 @@ public class ExchangeRatesRepository
 
         using var reader = command.ExecuteReader();
         return reader.Read() ? MapExchangeRate(reader) : null;
+    }
+
+    public ExchangeRate? AddExchangeRate(ExchangeRateForm exchangeRateForm)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText =
+        @"
+            INSERT INTO ExchangeRates (BaseCurrencyId, TargetCurrencyId, Rate)
+            SELECT c1.ID, c2.ID, @rate
+            FROM Currencies c1
+            INNER JOIN Currencies c2 ON c1.ID != c2.ID
+            WHERE c1.Code = @baseCurrencyCode AND c2.Code = @targetCurrencyCode
+            RETURNING ID; 
+        ";
+        command.Parameters.AddWithValue("@rate", exchangeRateForm.Rate);
+        command.Parameters.AddWithValue("@baseCurrencyCode", exchangeRateForm.BaseCurrencyCode);
+        command.Parameters.AddWithValue("@targetCurrencyCode", exchangeRateForm.TargetCurrencyCode);
+        
+        var insertedRowId = command.ExecuteScalar();
+        connection.Close();
+
+        var baseCurrency = _currenciesRepository.GetCurrency(exchangeRateForm.BaseCurrencyCode)
+            ?? throw new InvalidOperationException(
+                $"Currency with code '{exchangeRateForm.BaseCurrencyCode}' wasn't found in database");
+        var targetCurrency = _currenciesRepository.GetCurrency(exchangeRateForm.TargetCurrencyCode)
+            ?? throw new InvalidOperationException(
+                $"Currency with code '{exchangeRateForm.TargetCurrencyCode}' wasn't found in database");
+
+        return new ExchangeRate
+        {
+            ID = Convert.ToInt32(insertedRowId),
+            BaseCurrency = baseCurrency,
+            TargetCurrency = targetCurrency,
+            Rate = exchangeRateForm.Rate
+        };
     }
 
     private static ExchangeRate MapExchangeRate(SqliteDataReader reader)

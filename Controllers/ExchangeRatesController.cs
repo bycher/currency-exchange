@@ -54,4 +54,35 @@ public class ExchangeRatesController : ControllerBase
         
         return Ok(exchangeRate);
     }
+
+    [HttpPost("exchangeRates")]
+    public IActionResult PostExchangeRate([FromForm] ExchangeRateForm? exchangeRateForm)
+    {
+        if (exchangeRateForm is null)
+            return BadRequest("Exchange rate can't be null");
+        
+        try
+        {
+            var addedExchangeRate = _exchangeRatesRepository.AddExchangeRate(exchangeRateForm);
+            return CreatedAtAction(
+                nameof(GetExchangeRate),
+                new
+                {
+                    codePair = exchangeRateForm.BaseCurrencyCode +
+                               exchangeRateForm.TargetCurrencyCode
+                },
+                addedExchangeRate);
+        }
+        catch (SqliteException ex)
+        {
+            if (ex.SqliteErrorCode == 19)
+                return StatusCode(409, "Exchange rate is already in database");
+
+            return StatusCode(500, ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
 }
