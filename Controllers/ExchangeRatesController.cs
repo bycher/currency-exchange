@@ -85,4 +85,35 @@ public class ExchangeRatesController : ControllerBase
             return NotFound(ex.Message);
         }
     }
+
+    [HttpPatch("exchangeRate/{codePair?}")]
+    public ActionResult<ExchangeRate> PatchExchangeRate(string? codePair)
+    {
+        if (string.IsNullOrWhiteSpace(codePair) || codePair.Length != 6)
+            return BadRequest("Specify the currency pair in the format 'XXXYYY', " +
+                              "where 'XXX', 'YYY' are currency codes");
+
+        var baseCode = codePair[..3];
+        var targetCode = codePair[3..];
+
+        if (!Request.Form.TryGetValue("rate", out var newRateRaw))
+            return BadRequest("Field 'rate' is missing from the form");
+        
+        if (!double.TryParse(newRateRaw, out var newRate))
+            return BadRequest("Rate must be a floating point number");
+        
+        try
+        {
+            var updatedExchangeRate = _exchangeRatesRepository.UpdateExchangeRate(
+                baseCode, targetCode, newRate);
+            if (updatedExchangeRate == null)
+                return NotFound("Currency pair is missing from the database");
+
+            return Ok(updatedExchangeRate);
+        }
+        catch (SqliteException ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+    }
 }

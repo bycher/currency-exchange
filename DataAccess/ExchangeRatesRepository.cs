@@ -103,6 +103,44 @@ public class ExchangeRatesRepository
         };
     }
 
+    public ExchangeRate? UpdateExchangeRate(string baseCode, string targetCode, double newRate)
+    {   
+        var baseCurrency = _currenciesRepository.GetCurrency(baseCode);
+        if (baseCurrency == null)
+            return null;
+
+        var targetCurrency = _currenciesRepository.GetCurrency(targetCode);
+        if (targetCurrency == null)
+            return null;
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText =
+        @"
+            UPDATE ExchangeRates
+            SET Rate = @rate
+            WHERE BaseCurrencyId = @baseId AND TargetCurrencyId = @targetId
+            RETURNING ID;
+        ";
+        command.Parameters.AddWithValue("@rate", newRate);
+        command.Parameters.AddWithValue("@baseId", baseCurrency.ID);
+        command.Parameters.AddWithValue("@targetId", targetCurrency.ID);
+
+        var updatedID = command.ExecuteScalar();
+        if (updatedID == null)
+            return null;
+        
+        return new ExchangeRate
+        {
+            ID = Convert.ToInt32(updatedID),
+            BaseCurrency = baseCurrency,
+            TargetCurrency = targetCurrency,
+            Rate = newRate
+        };
+    }
+
     private static ExchangeRate MapExchangeRate(SqliteDataReader reader)
     {
         return new ExchangeRate
