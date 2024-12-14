@@ -141,6 +141,41 @@ public class ExchangeRatesRepository
         };
     }
 
+    public ExchangeResult? Exchange(string baseCode, string targetCode, double amount)
+    {
+        double? finalRate = null;
+
+        var exchangeRate = GetExchangeRate(baseCode, targetCode);
+        if (exchangeRate != null)
+            finalRate = exchangeRate.Rate;
+        else
+        {
+            var reversedExchangeRate = GetExchangeRate(targetCode, baseCode);
+            if (reversedExchangeRate != null)
+                finalRate = reversedExchangeRate.Rate;
+            else
+            {
+                var usdToBaseExchangeRate = GetExchangeRate("USD", baseCode);
+                var usdToTargetExchangeRate = GetExchangeRate("USD", targetCode);
+
+                if (usdToBaseExchangeRate != null && usdToTargetExchangeRate != null)                
+                    finalRate = usdToTargetExchangeRate.Rate / usdToBaseExchangeRate.Rate;
+            }
+        }
+        
+        if (finalRate == null)
+            return null;
+        
+        return new ExchangeResult
+        {
+            BaseCurrency = _currenciesRepository.GetCurrency(baseCode)!,
+            TargetCurrency = _currenciesRepository.GetCurrency(targetCode)!,
+            Rate = (double)finalRate,
+            Amount = amount,
+            ConvertedAmount = (double)finalRate * amount
+        };
+    }
+
     private static ExchangeRate MapExchangeRate(SqliteDataReader reader)
     {
         return new ExchangeRate
