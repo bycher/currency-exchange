@@ -1,5 +1,8 @@
-using CurrencyExchange.DataAccess;
+using CurrencyExchange.Dto;
+using CurrencyExchange.Exceptions;
 using CurrencyExchange.Models;
+using CurrencyExchange.Services.Interfaces;
+using CurrencyExchange.Validation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 
@@ -9,111 +12,100 @@ namespace CurrencyExchange.Controllers;
 [Route("api")]
 public class ExchangeRatesController : ControllerBase
 {
-    private readonly ExchangeRatesRepository _exchangeRatesRepository;
+    private readonly IExchangeRateService _exchangeRateService;
 
-    public ExchangeRatesController(ExchangeRatesRepository exchangeRatesRepository)
+    public ExchangeRatesController(IExchangeRateService exchangeRateService)
     {
-        _exchangeRatesRepository = exchangeRatesRepository;
+        _exchangeRateService = exchangeRateService;
     }
 
     [HttpGet("exchangeRates")]
-    public ActionResult<IEnumerable<ExchangeRate>> GetAllExchangeRates()
+    public ActionResult<IEnumerable<ExchangeRateDto>> GetAllExchangeRates()
     {
         try
         {
-            var exchangeRates = _exchangeRatesRepository.GetAllExchangeRates();
-            return Ok(exchangeRates);
+            var exchangeRateDtos = _exchangeRateService.GetAllExchangeRates();
+            return Ok(exchangeRateDtos);
         }
         catch (SqliteException ex)
         {
-            return StatusCode(500, ex.Message);
+            return StatusCode(500, new { message = ex.Message });
         }
     }
 
     [HttpGet("exchangeRate/{codePair?}")]
-    public ActionResult<ExchangeRate> GetExchangeRate(string? codePair)
+    public ActionResult<ExchangeRateDto> GetExchangeRate([ValidCurrencyCodePair] string? codePair)
     {
-        if (string.IsNullOrWhiteSpace(codePair) || codePair.Length != 6)
-            return BadRequest("Specify the currency pair in the format 'XXXYYY', " +
-                              "where 'XXX', 'YYY' are currency codes");
+        if (string.IsNullOrEmpty(codePair))
+            return BadRequest(new {message = "Currency code pair is missing."});
 
-        var baseCode = codePair[..3];
-        var targetCode = codePair[3..];
-
-        ExchangeRate? exchangeRate;
+        var (baseCode, targetCode) = ParseCurrencyCodePair(codePair);
         try
         {
-            exchangeRate = _exchangeRatesRepository.GetExchangeRate(baseCode, targetCode);
+            var exchangeRateDto = _exchangeRateService.GetExchangeRate(baseCode, targetCode);
+            if (exchangeRateDto == null)
+                return NotFound(new { message = "Exchange rate for the pair was not found" });
+
+            return Ok(exchangeRateDto);
         }
-        catch (SqliteException ex)
+        catch (ServiceException ex)
         {
-            return StatusCode(500, ex.Message);
+            return StatusCode(500, new { message = ex.Message });
         }
-        if (exchangeRate is null)
-            return NotFound("Exchange rate for the pair was not found");
-        
-        return Ok(exchangeRate);
     }
 
     [HttpPost("exchangeRates")]
-    public IActionResult PostExchangeRate([FromForm] ExchangeRateForm? exchangeRateForm)
+    public IActionResult PostExchangeRate([FromForm] CreateExchangeRateDto createExchangeRateDto)
     {
-        if (exchangeRateForm is null)
-            return BadRequest("Exchange rate can't be null");
-        
         try
         {
-            var addedExchangeRate = _exchangeRatesRepository.AddExchangeRate(exchangeRateForm);
+            var addedExchangeRateDto = _exchangeRateService.AddExchangeRate(createExchangeRateDto);
+            if (addedExchangeRateDto == null)
+                return NotFound(new { message = "Can't find currencies in the database" });
+
             return CreatedAtAction(
                 nameof(GetExchangeRate),
                 new
                 {
-                    codePair = exchangeRateForm.BaseCurrencyCode +
-                               exchangeRateForm.TargetCurrencyCode
+                    codePair = createExchangeRateDto.BaseCurrencyCode +
+                               createExchangeRateDto.TargetCurrencyCode
                 },
-                addedExchangeRate);
+                addedExchangeRateDto);
         }
-        catch (SqliteException ex)
+        catch (DuplicateDataException ex)
         {
-            if (ex.SqliteErrorCode == 19)
-                return StatusCode(409, "Exchange rate is already in database");
-
-            return StatusCode(500, ex.Message);
+            return Conflict(new { message = ex.Message });
         }
-        catch (InvalidOperationException ex)
+        catch (ServiceException ex)
         {
-            return NotFound(ex.Message);
+            return StatusCode(500, new { message = ex.Message });
         }
     }
 
     [HttpPatch("exchangeRate/{codePair?}")]
-    public ActionResult<ExchangeRate> PatchExchangeRate(string? codePair)
+    public ActionResult<ExchangeRate> PatchExchangeRate(
+        [ValidCurrencyCodePair] string? codePair, [FromForm][GreaterThanZero] double rate)
     {
-        if (string.IsNullOrWhiteSpace(codePair) || codePair.Length != 6)
-            return BadRequest("Specify the currency pair in the format 'XXXYYY', " +
-                              "where 'XXX', 'YYY' are currency codes");
+        if (string.IsNullOrEmpty(codePair))
+            return BadRequest(new {message = "Currency code pair is missing."});
 
-        var baseCode = codePair[..3];
-        var targetCode = codePair[3..];
-
-        if (!Request.Form.TryGetValue("rate", out var newRateRaw))
-            return BadRequest("Field 'rate' is missing from the form");
-        
-        if (!double.TryParse(newRateRaw, out var newRate))
-            return BadRequest("Rate must be a floating point number");
-        
+        var (baseCode, targetCode) = ParseCurrencyCodePair(codePair);
         try
         {
-            var updatedExchangeRate = _exchangeRatesRepository.UpdateExchangeRate(
-                baseCode, targetCode, newRate);
+            var updatedExchangeRate = _exchangeRateService.UpdateExchangeRate(baseCode, targetCode, rate);
             if (updatedExchangeRate == null)
-                return NotFound("Currency pair is missing from the database");
-
+                return NotFound(new { message = "Currency pair is missing from the database" });
             return Ok(updatedExchangeRate);
         }
-        catch (SqliteException ex)
+        catch (ServiceException ex)
         {
-            return StatusCode(500, ex.Message);
+            return StatusCode(500, new { message = ex.Message });
         }
+    }
+
+    private static (string, string) ParseCurrencyCodePair(string codePair)
+    {
+        return (codePair[..ValidCurrencyCodeAttribute.CodeLength],
+                codePair[ValidCurrencyCodeAttribute.CodeLength..]);
     }
 }

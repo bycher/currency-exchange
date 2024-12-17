@@ -1,7 +1,8 @@
-using CurrencyExchange.DataAccess;
-using CurrencyExchange.Models;
+using CurrencyExchange.Dto;
+using CurrencyExchange.Exceptions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
+using CurrencyExchange.Services.Interfaces;
+using CurrencyExchange.Validation;
 
 namespace CurrencyExchange.Controllers;
 
@@ -9,29 +10,28 @@ namespace CurrencyExchange.Controllers;
 [Route("api/[controller]")]
 public class ExchangeController : ControllerBase
 {
-    private readonly ExchangeRatesRepository _exchangeRatesRepository;
+    private readonly IExchangeService _exchangeService;
 
-    public ExchangeController(ExchangeRatesRepository exchangeRatesRepository)
+    public ExchangeController(IExchangeService exchangeService)
     {
-        _exchangeRatesRepository = exchangeRatesRepository;
+        _exchangeService = exchangeService;
     }
 
     [HttpGet]
-    public ActionResult<ExchangeResult> GetExchange(string from, string to, double amount)
+    public ActionResult<ExchangeResultDto> Exchange(
+        [ValidCurrencyCode] string from, [ValidCurrencyCode] string to, [GreaterThanZero] double amount)
     {
-        ExchangeResult? exchangeResult;
         try
         {
-            exchangeResult = _exchangeRatesRepository.Exchange(from, to, amount);
+            var exchangeResult = _exchangeService.Exchange(from, to, amount);
+            if (exchangeResult == null)
+                return NotFound(new { message = "Сan't calculate exchange rate for a currency pair" });
+
+            return Ok(exchangeResult);
         }
-        catch (SqliteException ex)
+        catch (ServiceException ex)
         {
-            return StatusCode(500, ex.Message);
+            return StatusCode(500, new { message = ex.Message });
         }
-
-        if (exchangeResult == null)
-            return NotFound("Сan't calculate the exchange rate for a currency pair");
-
-        return Ok(exchangeResult);
     }
 }
