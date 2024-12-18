@@ -8,7 +8,7 @@ public sealed class CurrenciesRepository : RepositoryBase<Currency>, ICurrencies
     public CurrenciesRepository(IConfiguration configuration) : base(configuration) {
     }
 
-    public List<Currency> GetAllCurrencies() => GetAllEntities(
+    public IEnumerable<Currency> GetAllCurrencies() => GetAllEntities(
         @"
             SELECT ID, Code, FullName, Sign
             FROM Currencies;

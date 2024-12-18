@@ -8,7 +8,7 @@ public sealed class ExchangeRatesRepository : RepositoryBase<ExchangeRate>, IExc
     public ExchangeRatesRepository(IConfiguration configuration) : base(configuration) {
     }
 
-    public List<ExchangeRate> GetAllExchangeRates() {
+    public IEnumerable<ExchangeRate> GetAllExchangeRates() {
         return GetAllEntities(
             @"
                 SELECT ID, BaseCurrencyId, TargetCurrencyId, Rate

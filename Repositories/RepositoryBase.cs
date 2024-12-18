@@ -10,7 +10,7 @@ public abstract class RepositoryBase<T> where T : Entity {
         _connectionString = configuration.GetConnectionString("DefaultConnection")!;
     }
 
-    protected List<T> GetAllEntities(string query) {
+    protected IEnumerable<T> GetAllEntities(string query) {
         return ExecuteQuery(query, MapRows);
     }
 
@@ -64,7 +64,7 @@ public abstract class RepositoryBase<T> where T : Entity {
 
     protected abstract T? MapRow(SqliteDataReader reader);
 
-    private  List<T> MapRows(SqliteDataReader reader) {
+    private IEnumerable<T> MapRows(SqliteDataReader reader) {
         var elements = new List<T>();
 
         while (reader.Read())

@@ -17,11 +17,10 @@ public class CurrencyService : ICurrencyService {
         _mapper = mapper;
     }
 
-    public List<CurrencyDto> GetAllCurrencies() {
+    public IEnumerable<CurrencyDto> GetAllCurrencies() {
         try {
             return _currenciesRepository.GetAllCurrencies()
-                .Select(_mapper.Map<CurrencyDto>)
-                .ToList();
+                .Select(_mapper.Map<CurrencyDto>);
         }
         catch (SqliteException ex) {
             // TODO: add logging

@@ -18,15 +18,14 @@ public class ExchangeRateService : IExchangeRateService {
         _currencyService = currencyService;
     }
 
-    public List<ExchangeRateDto> GetAllExchangeRates() {
+    public IEnumerable<ExchangeRateDto> GetAllExchangeRates() {
         try {
             var currencyDtosDict = _currencyService.GetAllCurrencies().ToDictionary(c => c.Id);
 
             return _exchangeRatesRepository.GetAllExchangeRates()
                 .Select(er => ToExchangeRateDto(
                     er, currencyDtosDict[er.BaseCurrencyId], currencyDtosDict[er.TargetCurrencyId]
-                )!)
-                .ToList();
+                )!);
         }
         catch (SqliteException ex) {
             // TODO: add logging
