@@ -65,14 +65,12 @@ public sealed class ExchangeRatesRepository : RepositoryBase<ExchangeRate>, IExc
         );
     }
 
-    protected override ExchangeRate? MapRow(SqliteDataReader reader) {
-        return reader.Read()
-            ? new() {
-                Id = reader.GetInt32(0),
-                BaseCurrencyId = reader.GetInt32(1),
-                TargetCurrencyId = reader.GetInt32(2),
-                Rate = reader.GetDouble(3),
-            }
-            : null;
+    protected override ExchangeRate MapRow(SqliteDataReader reader) {
+        return new ExchangeRate {
+            Id = reader.GetInt32(0),
+            BaseCurrencyId = reader.GetInt32(1),
+            TargetCurrencyId = reader.GetInt32(2),
+            Rate = reader.GetDouble(3),
+        };
     }
 }

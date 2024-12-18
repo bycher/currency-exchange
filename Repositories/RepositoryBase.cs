@@ -17,7 +17,11 @@ public abstract class RepositoryBase<T> where T : Entity {
     protected T? GetEntity(
         string query, Action<SqliteCommand>? configureCommandParameters = null
     ) {
-        return ExecuteQuery(query, MapRow, configureCommandParameters);
+        return ExecuteQuery(
+            query,
+            reader => MapRows(reader).FirstOrDefault(),
+            configureCommandParameters
+        );
     }
 
     protected T AddEntity(
@@ -53,22 +57,23 @@ public abstract class RepositoryBase<T> where T : Entity {
         configureCommandParameters?.Invoke(command);
 
         using var reader = command.ExecuteReader();
+
         return mapResult(reader);
     }
 
     private static T? MapWithDefinedId(SqliteDataReader reader, T entity) {
-        return entity != null
+        return reader.Read()
             ? entity with { Id = reader.GetInt32(0) }
             : null;
     }
 
-    protected abstract T? MapRow(SqliteDataReader reader);
+    protected abstract T MapRow(SqliteDataReader reader);
 
     private IEnumerable<T> MapRows(SqliteDataReader reader) {
         var elements = new List<T>();
 
         while (reader.Read())
-            elements.Add(MapRow(reader)!);
+            elements.Add(MapRow(reader));
 
         return elements;
     }
