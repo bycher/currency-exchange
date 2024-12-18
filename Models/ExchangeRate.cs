@@ -1,9 +1,7 @@
 namespace CurrencyExchange.Models;
 
-public class ExchangeRate
-{
-    public int Id { get; set; }
-    public int BaseCurrencyId { get; set; }
-    public int TargetCurrencyId { get; set; }
-    public double Rate { get; set; }
+public record ExchangeRate : Entity {
+    public int BaseCurrencyId { get; init; }
+    public int TargetCurrencyId { get; init; }
+    public double Rate { get; init; }
 }

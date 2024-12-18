@@ -1,9 +1,7 @@
 namespace CurrencyExchange.Models;
 
-public class Currency
-{
-    public int Id { get; set; }
-    public string Code { get; set; } = null!;
-    public string FullName { get; set; } = null!;
-    public string Sign { get; set; } = null!;
+public record Currency : Entity {
+    public string Code { get; init; } = null!;
+    public string FullName { get; init; } = null!;
+    public string Sign { get; init; } = null!;
 }

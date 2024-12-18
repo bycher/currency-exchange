@@ -2,8 +2,7 @@ using CurrencyExchange.Validation;
 
 namespace CurrencyExchange.Dto;
 
-public class CreateExchangeRateDto
-{
+public class CreateExchangeRateDto {
     [ValidCurrencyCode]
     public required string BaseCurrencyCode { get; set; }
     [ValidCurrencyCode]

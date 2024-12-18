@@ -3,22 +3,21 @@ using CurrencyExchange.Services.Interfaces;
 
 namespace CurrencyExchange.Services;
 
-public class ExchangeService : IExchangeService
-{
+public class ExchangeService : IExchangeService {
     private readonly IExchangeRateService _exchangeRateService;
 
-    public ExchangeService(IExchangeRateService exchangeRateService)
-    {
+    public ExchangeService(IExchangeRateService exchangeRateService) {
         _exchangeRateService = exchangeRateService;
     }
 
-    public ExchangeResultDto? Exchange(string baseCurrencyCode, string targetCurrencyCode, double amount)
-    {
+    public ExchangeResultDto? Exchange(
+        string baseCurrencyCode, string targetCurrencyCode, double amount
+    ) {
         var directExchangeResult = DirectExchange(baseCurrencyCode, targetCurrencyCode, amount);
         if (directExchangeResult != null)
             return directExchangeResult;
 
-        var reverseExchangeResult = ReverseExchange(baseCurrencyCode, targetCurrencyCode, amount);
+        var reverseExchangeResult = ReversedExchange(baseCurrencyCode, targetCurrencyCode, amount);
         if (reverseExchangeResult != null)
             return reverseExchangeResult;
 
@@ -29,54 +28,52 @@ public class ExchangeService : IExchangeService
         return null;
     }
 
-    private ExchangeResultDto? DirectExchange(string baseCurrencyCode, string targetCurrencyCode, double amount)
-    {
-        var exchangeRateDto = _exchangeRateService.GetExchangeRate(baseCurrencyCode, targetCurrencyCode);
-        if (exchangeRateDto == null)
-            return null;
-
-        return new ExchangeResultDto
-        {
-            BaseCurrency = exchangeRateDto.BaseCurrency,
-            TargetCurrency = exchangeRateDto.TargetCurrency,
-            Rate = exchangeRateDto.Rate,
-            Amount = amount,
-            ConvertedAmount = exchangeRateDto.Rate * amount
-        };
+    private ExchangeResultDto? DirectExchange(
+        string baseCurrencyCode, string targetCurrencyCode, double amount
+    ) {
+        var exchangeRate = _exchangeRateService.GetExchangeRate(baseCurrencyCode, targetCurrencyCode);
+        
+        return exchangeRate == null
+            ? null
+            : new ExchangeResultDto {
+                BaseCurrency = exchangeRate.BaseCurrency,
+                TargetCurrency = exchangeRate.TargetCurrency,
+                Rate = exchangeRate.Rate,
+                Amount = amount,
+                ConvertedAmount = exchangeRate.Rate * amount
+            };
     }
 
-    private ExchangeResultDto? ReverseExchange(string baseCurrencyCode, string targetCurrencyCode, double amount)
-    {
-        var exchangeRateDto = _exchangeRateService.GetExchangeRate(targetCurrencyCode, baseCurrencyCode);
-        if (exchangeRateDto == null)
-            return null;
+    private ExchangeResultDto? ReversedExchange(
+        string baseCurrencyCode, string targetCurrencyCode, double amount
+    ) {
+        var reversedExchangeRate = _exchangeRateService.GetExchangeRate(targetCurrencyCode, baseCurrencyCode);
 
-        return new ExchangeResultDto
-        {
-            BaseCurrency = exchangeRateDto.TargetCurrency,
-            TargetCurrency = exchangeRateDto.BaseCurrency,
-            Rate = 1 / exchangeRateDto.Rate,
-            Amount = amount,
-            ConvertedAmount = amount / exchangeRateDto.Rate
-        };
+        return reversedExchangeRate == null
+            ? null
+            : new ExchangeResultDto {
+                BaseCurrency = reversedExchangeRate.TargetCurrency,
+                TargetCurrency = reversedExchangeRate.BaseCurrency,
+                Rate = 1 / reversedExchangeRate.Rate,
+                Amount = amount,
+                ConvertedAmount = amount / reversedExchangeRate.Rate
+            };
     }
 
-    private ExchangeResultDto? CrossExchange(string baseCurrencyCode, string targetCurrencyCode, double amount)
-    {
-        var usdToBaseExchangeRateDto = _exchangeRateService.GetExchangeRate("USD", baseCurrencyCode);
-        if (usdToBaseExchangeRateDto == null)
-            return null;
-        var usdToTargetExchangeRateDto = _exchangeRateService.GetExchangeRate("USD", targetCurrencyCode);
-        if (usdToTargetExchangeRateDto == null)
-            return null;
+    private ExchangeResultDto? CrossExchange(
+        string baseCurrencyCode, string targetCurrencyCode, double amount
+    ) {
+        var usdToBaseExchangeRate = _exchangeRateService.GetExchangeRate("USD", baseCurrencyCode);
+        var usdToTargetExchangeRate = _exchangeRateService.GetExchangeRate("USD", targetCurrencyCode);
 
-        return new ExchangeResultDto
-        {
-            BaseCurrency = usdToBaseExchangeRateDto.TargetCurrency,
-            TargetCurrency = usdToTargetExchangeRateDto.TargetCurrency,
-            Rate = usdToTargetExchangeRateDto.Rate / usdToBaseExchangeRateDto.Rate,
-            Amount = amount,
-            ConvertedAmount = amount * usdToTargetExchangeRateDto.Rate / usdToBaseExchangeRateDto.Rate
-        };
+        return usdToTargetExchangeRate == null || usdToBaseExchangeRate == null
+            ? null
+            : new ExchangeResultDto {
+                BaseCurrency = usdToBaseExchangeRate.TargetCurrency,
+                TargetCurrency = usdToTargetExchangeRate.TargetCurrency,
+                Rate = usdToTargetExchangeRate.Rate / usdToBaseExchangeRate.Rate,
+                Amount = amount,
+                ConvertedAmount = amount * usdToTargetExchangeRate.Rate / usdToBaseExchangeRate.Rate
+            };
     }
 }
