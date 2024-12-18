@@ -10,37 +10,39 @@ public abstract class RepositoryBase<T> where T : Entity {
         _connectionString = configuration.GetConnectionString("DefaultConnection")!;
     }
 
+    protected abstract T MapEntity(SqliteDataReader reader);
+
     protected IEnumerable<T> GetAllEntities(string query) {
-        return ExecuteQuery(query, MapRows);
+        return ExecuteQuery(query, MapEntities);
     }
 
     protected T? GetEntity(
-        string query, Action<SqliteCommand>? configureCommandParameters = null
+        string query, Action<SqliteCommand>? queryParamsConfigurator = null
     ) {
         return ExecuteQuery(
             query,
-            reader => MapRows(reader).FirstOrDefault(),
-            configureCommandParameters
+            reader => MapEntities(reader).FirstOrDefault(),
+            queryParamsConfigurator
         );
     }
 
     protected T AddEntity(
-        string query, T entityData, Action<SqliteCommand>? configureCommandParameters = null
+        string query, T entity, Action<SqliteCommand>? queryParamsConfigurator = null
     ) {
         return ExecuteQuery(
             query,
-            reader => MapWithDefinedId(reader, entityData)!,
-            configureCommandParameters
+            reader => (T)entity.CopyWithIdFromReader(reader)!,
+            queryParamsConfigurator
         );
     }
 
     protected T? UpdateEntity(
-        string query, T newEntityData, Action<SqliteCommand>? configureCommandParameters = null
+        string query, T entity, Action<SqliteCommand>? queryParamsConfigurator = null
     ) {
         return ExecuteQuery(
             query,
-            reader => MapWithDefinedId(reader, newEntityData),
-            configureCommandParameters
+            reader => (T?)entity.CopyWithIdFromReader(reader),
+            queryParamsConfigurator
         );
     }
 
@@ -61,19 +63,11 @@ public abstract class RepositoryBase<T> where T : Entity {
         return mapResult(reader);
     }
 
-    private static T? MapWithDefinedId(SqliteDataReader reader, T entity) {
-        return reader.Read()
-            ? entity with { Id = reader.GetInt32(0) }
-            : null;
-    }
-
-    protected abstract T MapRow(SqliteDataReader reader);
-
-    private IEnumerable<T> MapRows(SqliteDataReader reader) {
+    private IEnumerable<T> MapEntities(SqliteDataReader reader) {
         var elements = new List<T>();
 
         while (reader.Read())
-            elements.Add(MapRow(reader));
+            elements.Add(MapEntity(reader));
 
         return elements;
     }

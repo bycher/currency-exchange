@@ -4,11 +4,14 @@ using Microsoft.Data.Sqlite;
 
 namespace CurrencyExchange.Repositories;
 
-public sealed class CurrenciesRepository : RepositoryBase<Currency>, ICurrenciesRepository {
-    public CurrenciesRepository(IConfiguration configuration) : base(configuration) {
+public sealed class CurrenciesRepository : RepositoryBase<Currency>, ICurrenciesRepository
+{
+    public CurrenciesRepository(IConfiguration configuration) : base(configuration)
+    {
     }
 
-    public IEnumerable<Currency> GetAllCurrencies() {
+    public IEnumerable<Currency> GetAllCurrencies()
+    {
         return GetAllEntities(
             @"
                 SELECT ID, Code, FullName, Sign
@@ -17,7 +20,8 @@ public sealed class CurrenciesRepository : RepositoryBase<Currency>, ICurrencies
         );
     }
 
-    public Currency? GetCurrency(string code) {
+    public Currency? GetCurrency(string code)
+    {
         return GetEntity(
             @"
                 SELECT ID, Code, FullName, Sign
@@ -28,7 +32,8 @@ public sealed class CurrenciesRepository : RepositoryBase<Currency>, ICurrencies
         );
     }
 
-    public Currency AddCurrency(Currency currency) {
+    public Currency AddCurrency(Currency currency)
+    {
         return AddEntity(
             @"
                 INSERT INTO Currencies (Code, FullName, Sign)
@@ -45,8 +50,10 @@ public sealed class CurrenciesRepository : RepositoryBase<Currency>, ICurrencies
         );
     }
 
-    protected override Currency MapRow(SqliteDataReader reader) {
-        return new Currency {
+    protected override Currency MapEntity(SqliteDataReader reader)
+    {
+        return new Currency
+        {
             Id = reader.GetInt32(0),
             Code = reader.GetString(1),
             FullName = reader.GetString(2),
