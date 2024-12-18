@@ -79,11 +79,13 @@ public class ExchangeRatesController : ControllerBase {
 
         var (baseCode, targetCode) = ParseCurrencyCodePair(codePair);
         try {
-            var updatedExchangeRate = _exchangeRateService.UpdateExchangeRate(new CreateExchangeRateDto {
-                BaseCurrencyCode = baseCode,
-                TargetCurrencyCode = targetCode,
-                Rate = rate
-            });
+            var updatedExchangeRate = _exchangeRateService.UpdateExchangeRate(
+                new CreateExchangeRateDto {
+                    BaseCurrencyCode = baseCode,
+                    TargetCurrencyCode = targetCode,
+                    Rate = rate
+                }
+            );
             if (updatedExchangeRate == null)
                 return NotFound(new { message = "Currency pair is missing from the database" });
 
@@ -98,6 +100,6 @@ public class ExchangeRatesController : ControllerBase {
         return (
             codePair[..ValidCurrencyCodeAttribute.CodeLength],
             codePair[ValidCurrencyCodeAttribute.CodeLength..]
-        );
+            );
     }
 }

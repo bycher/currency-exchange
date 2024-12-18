@@ -3,25 +3,33 @@ using CurrencyExchange.Repositories.Interfaces;
 using CurrencyExchange.Services;
 using CurrencyExchange.Services.Interfaces;
 
-var builder = WebApplication.CreateBuilder(args);
+internal class Program {
+    private static void Main(string[] args) {
+        var builder = WebApplication.CreateBuilder(args);
+        
+        ConfigureServices(builder);    
 
-builder.Services.AddAutoMapper(typeof(Program));
+        var app = builder.Build();
 
-// Configure repositories
-builder.Services.AddScoped<ICurrenciesRepository, CurrenciesRepository>();
-builder.Services.AddScoped<IExchangeRatesRepository, ExchangeRatesRepository>();
+        app.UseHttpsRedirection();
+        app.UseAuthorization();
+        app.MapControllers();
 
-// Configure services
-builder.Services.AddScoped<ICurrencyService, CurrencyService>();
-builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
-builder.Services.AddScoped<IExchangeService, ExchangeService>();
+        app.Run();
+    }
 
-builder.Services.AddControllers();
+    private static void ConfigureServices(WebApplicationBuilder builder) {
+        builder.Services.AddAutoMapper(typeof(Program));
 
-var app = builder.Build();
+        // Configure repositories
+        builder.Services.AddScoped<ICurrenciesRepository, CurrenciesRepository>();
+        builder.Services.AddScoped<IExchangeRatesRepository, ExchangeRatesRepository>();
 
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
+        // Configure services
+        builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+        builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
+        builder.Services.AddScoped<IExchangeService, ExchangeService>();
 
-app.Run();
+        builder.Services.AddControllers();
+    }
+}

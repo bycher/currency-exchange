@@ -3,12 +3,10 @@ using System.Text.RegularExpressions;
 
 namespace CurrencyExchange.Validation;
 
-public partial class ValidCurrencyCodePairAttribute : ValidationAttribute
-{
+public partial class ValidCurrencyCodePairAttribute : ValidationAttribute {
     private static readonly Regex _regex = new(@"^[A-Z]{6}$", RegexOptions.Compiled);
 
-    protected override ValidationResult? IsValid(object? value, ValidationContext _)
-    {
+    protected override ValidationResult? IsValid(object? value, ValidationContext _) {
         if (value == null)
             return new ValidationResult("The currency code pair is missing.");
 
