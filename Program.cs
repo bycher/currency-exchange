@@ -1,35 +1,35 @@
+using CurrencyExchange.Mapping;
+using CurrencyExchange.Middlewares;
 using CurrencyExchange.Repositories;
 using CurrencyExchange.Repositories.Interfaces;
 using CurrencyExchange.Services;
 using CurrencyExchange.Services.Interfaces;
+using CurrencyExchange.Validation;
 
-internal class Program {
-    private static void Main(string[] args) {
-        var builder = WebApplication.CreateBuilder(args);
-        
-        ConfigureServices(builder);    
+var builder = WebApplication.CreateBuilder(args);
 
-        var app = builder.Build();
+builder.Services.AddAutoMapper(config => {
+    config.AddProfile<CurrencyProfile>();
+    config.AddProfile<ExchangeRateProfile>();
+});
 
-        app.UseHttpsRedirection();
-        app.UseAuthorization();
-        app.MapControllers();
+// Configure repositories
+builder.Services.AddScoped<ICurrenciesRepository, CurrenciesRepository>();
+builder.Services.AddScoped<IExchangeRatesRepository, ExchangeRatesRepository>();
 
-        app.Run();
-    }
+// Configure services
+builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
+builder.Services.AddScoped<IExchangeService, ExchangeService>();
 
-    private static void ConfigureServices(WebApplicationBuilder builder) {
-        builder.Services.AddAutoMapper(typeof(Program));
+builder.Services
+    .AddControllers(opt => opt.Filters.Add<ValidateModelFilter>())
+    .ConfigureApiBehaviorOptions(opt => opt.SuppressModelStateInvalidFilter = true);  
 
-        // Configure repositories
-        builder.Services.AddScoped<ICurrenciesRepository, CurrenciesRepository>();
-        builder.Services.AddScoped<IExchangeRatesRepository, ExchangeRatesRepository>();
+var app = builder.Build();
 
-        // Configure services
-        builder.Services.AddScoped<ICurrencyService, CurrencyService>();
-        builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
-        builder.Services.AddScoped<IExchangeService, ExchangeService>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpsRedirection();
+app.MapControllers();
 
-        builder.Services.AddControllers();
-    }
-}
+app.Run();

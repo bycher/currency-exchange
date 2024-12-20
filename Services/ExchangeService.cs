@@ -1,79 +1,121 @@
-using CurrencyExchange.Dto;
+using CurrencyExchange.Exceptions;
+using CurrencyExchange.Models.Dto;
 using CurrencyExchange.Services.Interfaces;
 
 namespace CurrencyExchange.Services;
 
-public class ExchangeService : IExchangeService {
-    private readonly IExchangeRateService _exchangeRateService;
+public sealed class ExchangeService(IExchangeRateService exchangeRateService) : IExchangeService {
+    private const string CrossCurrencyCode = "USD";
 
-    public ExchangeService(IExchangeRateService exchangeRateService) {
-        _exchangeRateService = exchangeRateService;
-    }
-
-    public ExchangeResultDto? Exchange(
+    /// <summary>
+    /// Exchanges amount of money from one currency to another.
+    /// </summary>
+    /// <param name="baseCurrencyCode">Base currency code.</param>
+    /// <param name="targetCurrencyCode">Target currency code.</param>
+    /// <param name="amount">Amount of money to exchange.</param>
+    /// <returns>Exchange result.</returns>
+    /// <exception cref="ResourceNotFoundException">
+    /// Thrown when we can't exchange money neither directly, nor reversed, nor cross.
+    /// </exception>
+    public ExchangeResultDto Exchange(
         string baseCurrencyCode, string targetCurrencyCode, double amount
     ) {
-        var directExchangeResult = DirectExchange(baseCurrencyCode, targetCurrencyCode, amount);
-        if (directExchangeResult != null)
-            return directExchangeResult;
-
-        var reverseExchangeResult = ReversedExchange(baseCurrencyCode, targetCurrencyCode, amount);
-        if (reverseExchangeResult != null)
-            return reverseExchangeResult;
-
-        var crossExchangeResult = CrossExchange(baseCurrencyCode, targetCurrencyCode, amount);
-        if (crossExchangeResult != null)
-            return crossExchangeResult;
-
-        return null;
+        return DirectExchange(baseCurrencyCode, targetCurrencyCode, amount)
+            ?? ReversedExchange(baseCurrencyCode, targetCurrencyCode, amount)
+            ?? CrossExchange(baseCurrencyCode, targetCurrencyCode, amount)
+            ?? throw new ResourceNotFoundException(
+                $"Can't exchange '{baseCurrencyCode}' -> '{targetCurrencyCode}'" +
+                " according to available exchange rates"
+            );
     }
 
+    /// <summary>
+    /// Exchanges amount of money directly from base currency to target currency.
+    /// </summary>
+    /// <param name="baseCurrencyCode">Base currency code.</param>
+    /// <param name="targetCurrencyCode">Target currency code.</param>
+    /// <param name="amount">Amount of money to exchange.</param>
+    /// <returns>Exchange result or null if exchange rate is not found.</returns>
     private ExchangeResultDto? DirectExchange(
         string baseCurrencyCode, string targetCurrencyCode, double amount
     ) {
-        var exchangeRate = _exchangeRateService.GetExchangeRate(baseCurrencyCode, targetCurrencyCode);
-        
-        return exchangeRate == null
-            ? null
-            : new ExchangeResultDto {
-                BaseCurrency = exchangeRate.BaseCurrency,
-                TargetCurrency = exchangeRate.TargetCurrency,
-                Rate = exchangeRate.Rate,
-                Amount = amount,
-                ConvertedAmount = exchangeRate.Rate * amount
-            };
+        return TryExecuteExchange(() => {
+            var exchangeRate = exchangeRateService.GetExchangeRate(
+                baseCurrencyCode, targetCurrencyCode
+            );
+            return new ExchangeResultDto(
+                exchangeRate.BaseCurrency,
+                exchangeRate.TargetCurrency,
+                exchangeRate.Rate,
+                amount
+            );
+        });
     }
 
+    /// <summary>
+    /// Exchanges amount of money reversed from base currency to target currency.
+    /// </summary>
+    /// <param name="baseCurrencyCode">Base currency code.</param>
+    /// <param name="targetCurrencyCode">Target currency code.</param>
+    /// <param name="amount">Amount of money to exchange.</param>
+    /// <returns>Exchange result or null if exchange rate is not found.</returns>
     private ExchangeResultDto? ReversedExchange(
         string baseCurrencyCode, string targetCurrencyCode, double amount
     ) {
-        var reversedExchangeRate = _exchangeRateService.GetExchangeRate(targetCurrencyCode, baseCurrencyCode);
-
-        return reversedExchangeRate == null
-            ? null
-            : new ExchangeResultDto {
-                BaseCurrency = reversedExchangeRate.TargetCurrency,
-                TargetCurrency = reversedExchangeRate.BaseCurrency,
-                Rate = 1 / reversedExchangeRate.Rate,
-                Amount = amount,
-                ConvertedAmount = amount / reversedExchangeRate.Rate
-            };
+        return TryExecuteExchange(() => {
+            var reversedExchangeRate = exchangeRateService.GetExchangeRate(
+                targetCurrencyCode, baseCurrencyCode
+            );
+            return new ExchangeResultDto(
+                reversedExchangeRate.TargetCurrency,
+                reversedExchangeRate.BaseCurrency,
+                1 / reversedExchangeRate.Rate,
+                amount
+            );
+        });
     }
 
+    /// <summary>
+    /// Exchanges amount of money cross-exchanged from base currency to target currency.
+    /// </summary>
+    /// <param name="baseCurrencyCode">Base currency code.</param>
+    /// <param name="targetCurrencyCode">Target currency code.</param>
+    /// <param name="amount">Amount of money to exchange.</param>
+    /// <returns>Exchange result or null if exchange rate is not found.</returns>
     private ExchangeResultDto? CrossExchange(
         string baseCurrencyCode, string targetCurrencyCode, double amount
     ) {
-        var usdToBaseExchangeRate = _exchangeRateService.GetExchangeRate("USD", baseCurrencyCode);
-        var usdToTargetExchangeRate = _exchangeRateService.GetExchangeRate("USD", targetCurrencyCode);
+        return TryExecuteExchange(() => {
+            var usdToBaseExchangeRate = exchangeRateService.GetExchangeRate(
+                CrossCurrencyCode, baseCurrencyCode
+            );
+            var usdToTargetExchangeRate = exchangeRateService.GetExchangeRate(
+                CrossCurrencyCode, targetCurrencyCode
+            );
+            return new ExchangeResultDto(
+                usdToBaseExchangeRate.TargetCurrency,
+                usdToTargetExchangeRate.TargetCurrency,
+                usdToTargetExchangeRate.Rate / usdToBaseExchangeRate.Rate,
+                amount
+            );
+        });
+    }
 
-        return usdToTargetExchangeRate == null || usdToBaseExchangeRate == null
-            ? null
-            : new ExchangeResultDto {
-                BaseCurrency = usdToBaseExchangeRate.TargetCurrency,
-                TargetCurrency = usdToTargetExchangeRate.TargetCurrency,
-                Rate = usdToTargetExchangeRate.Rate / usdToBaseExchangeRate.Rate,
-                Amount = amount,
-                ConvertedAmount = amount * usdToTargetExchangeRate.Rate / usdToBaseExchangeRate.Rate
-            };
+    /// <summary>
+    /// Tries to execute exchange. Catches exceptions and returns null if exchange rate is not found.
+    /// Currency not found exception is thrown further.
+    /// </summary>
+    /// <param name="exchanger">Exchange function.</param>
+    /// <returns>Exchange result or null if exchange rate is not found.</returns>
+    private static ExchangeResultDto? TryExecuteExchange(Func<ExchangeResultDto> exchanger) {
+        try {
+            return exchanger();
+        }
+        catch (CurrencyNotFoundException) {
+            throw;
+        }
+        catch (ExchangeRateNotFoundException) {
+            return null;
+        }
     }
 }

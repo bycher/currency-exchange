@@ -1,105 +1,90 @@
-using CurrencyExchange.Dto;
-using CurrencyExchange.Exceptions;
-using CurrencyExchange.Models;
+using CurrencyExchange.Models.Dto;
+using CurrencyExchange.Models.Responses;
 using CurrencyExchange.Services.Interfaces;
 using CurrencyExchange.Validation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
 
 namespace CurrencyExchange.Controllers;
 
+/// <summary>
+/// Controller for managing exchange rates (CRUD operations).
+/// </summary>
+/// <param name="exchangeRateService">Exchange rate service.</param>
 [ApiController]
 [Route("api")]
-public class ExchangeRatesController : ControllerBase {
-    private readonly IExchangeRateService _exchangeRateService;
-
-    public ExchangeRatesController(IExchangeRateService exchangeRateService) {
-        _exchangeRateService = exchangeRateService;
-    }
-
+public class ExchangeRatesController(IExchangeRateService exchangeRateService) : ControllerBase {
+    /// <summary>
+    /// Handles GET requests to retrieve all exchange rates.
+    /// </summary>
+    /// <returns>Exchange rates collection.</returns>
     [HttpGet("exchangeRates")]
     public ActionResult<IEnumerable<ExchangeRateDto>> GetAllExchangeRates() {
-        try {
-            var exchangeRateDtos = _exchangeRateService.GetAllExchangeRates();
-            return Ok(exchangeRateDtos);
-        }
-        catch (SqliteException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+        var exchangeRates = exchangeRateService.GetAllExchangeRates();
+        return Ok(exchangeRates);
     }
 
+    /// <summary>
+    /// Handles GET requests to retrieve an exchange rate for a given currency pair.
+    /// </summary>
+    /// <param name="codePair">Currency pair code (e.g. "USDEUR").</param>
+    /// <returns>Exchange rate.</returns>
     [HttpGet("exchangeRate/{codePair?}")]
     public ActionResult<ExchangeRateDto> GetExchangeRate([ValidCurrencyCodePair] string? codePair) {
         if (string.IsNullOrEmpty(codePair))
-            return BadRequest(new {message = "Currency code pair is missing."});
+            return BadRequest(new ErrorResponse(400, "Currency code pair is missing."));
 
         var (baseCode, targetCode) = ParseCurrencyCodePair(codePair);
-        try {
-            var exchangeRateDto = _exchangeRateService.GetExchangeRate(baseCode, targetCode);
-            if (exchangeRateDto == null)
-                return NotFound(new { message = "Exchange rate for the pair was not found" });
-
-            return Ok(exchangeRateDto);
-        }
-        catch (ServiceException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+        var exchangeRate = exchangeRateService.GetExchangeRate(baseCode, targetCode);
+        return Ok(exchangeRate);
     }
 
+    /// <summary>
+    /// Handles POST requests to add an exchange rate.
+    /// </summary>
+    /// <param name="exchangeRateForm">Exchange rate form.</param>
+    /// <returns>Created exchange rate.</returns>
     [HttpPost("exchangeRates")]
-    public IActionResult PostExchangeRate([FromForm] CreateExchangeRateDto createExchangeRateDto) {
-        try {
-            var addedExchangeRateDto = _exchangeRateService.AddExchangeRate(createExchangeRateDto);
-            if (addedExchangeRateDto == null)
-                return NotFound(new { message = "Can't find currencies in the database" });
-
-            return CreatedAtAction(
-                nameof(GetExchangeRate),
-                new {
-                    codePair = createExchangeRateDto.BaseCurrencyCode +
-                               createExchangeRateDto.TargetCurrencyCode
-                },
-                addedExchangeRateDto
-            );
-        }
-        catch (DuplicateDataException ex) {
-            return Conflict(new { message = ex.Message });
-        }
-        catch (ServiceException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+    public IActionResult PostExchangeRate([FromForm] ExchangeRateFormDto exchangeRateForm) {
+        var exchangeRate = exchangeRateService.AddExchangeRate(exchangeRateForm);
+        return CreatedAtAction(
+            nameof(GetExchangeRate),
+            new {
+                codePair = exchangeRateForm.BaseCurrencyCode +
+                           exchangeRateForm.TargetCurrencyCode
+            },
+            exchangeRate
+        );
     }
 
+    /// <summary>
+    /// Handles PATCH requests to update an exchange rate.
+    /// </summary>
+    /// <param name="codePair">Currency pair code (e.g. "USDEUR").</param>
+    /// <param name="rate">Exchange rate.</param>
+    /// <returns>Updated exchange rate.</returns>
     [HttpPatch("exchangeRate/{codePair?}")]
-    public ActionResult<ExchangeRate> PatchExchangeRate(
+    public ActionResult<ExchangeRateDto> PatchExchangeRate(
         [ValidCurrencyCodePair] string? codePair, [FromForm][GreaterThanZero] double rate
-    ){
+    ) {
         if (string.IsNullOrEmpty(codePair))
-            return BadRequest(new {message = "Currency code pair is missing."});
+            return BadRequest(new ErrorResponse(400, "Currency code pair is missing."));
 
         var (baseCode, targetCode) = ParseCurrencyCodePair(codePair);
-        try {
-            var updatedExchangeRate = _exchangeRateService.UpdateExchangeRate(
-                new CreateExchangeRateDto {
-                    BaseCurrencyCode = baseCode,
-                    TargetCurrencyCode = targetCode,
-                    Rate = rate
-                }
-            );
-            if (updatedExchangeRate == null)
-                return NotFound(new { message = "Currency pair is missing from the database" });
-
-            return Ok(updatedExchangeRate);
-        }
-        catch (ServiceException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+        var updatedExchangeRate = exchangeRateService.UpdateExchangeRate(
+            new ExchangeRateFormDto(baseCode, targetCode, rate)
+        );
+        return Ok(updatedExchangeRate);
     }
 
+    /// <summary>
+    /// Extracts base and target codes from a currency pair code.
+    /// </summary>
+    /// <param name="codePair">Currency pair code (e.g. "USDEUR").</param>
+    /// <returns>Base and target codes.</returns>
     private static (string, string) ParseCurrencyCodePair(string codePair) {
         return (
             codePair[..ValidCurrencyCodeAttribute.CodeLength],
             codePair[ValidCurrencyCodeAttribute.CodeLength..]
-            );
+        );
     }
 }

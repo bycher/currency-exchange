@@ -1,60 +1,52 @@
-using CurrencyExchange.Dto;
-using CurrencyExchange.Exceptions;
+using CurrencyExchange.Models.Dto;
+using CurrencyExchange.Models.Responses;
 using CurrencyExchange.Services.Interfaces;
 using CurrencyExchange.Validation;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CurrencyExchange.Controllers;
 
+/// <summary>
+/// Controller for managing currencies (CRUD operations).
+/// </summary>
+/// <param name="currencyService">Currency service.</param>
 [ApiController]
 [Route("api")]
-public class CurrenciesController : ControllerBase {
-    private readonly ICurrencyService _currencyService;
-
-    public CurrenciesController(ICurrencyService currencyService) {
-        _currencyService = currencyService;
-    }
-
+public class CurrenciesController(ICurrencyService currencyService) : ControllerBase {
+    /// <summary>
+    /// Handles GET requests to retrieve all currencies.
+    /// </summary>
+    /// <returns>Currencies collection.</returns>
     [HttpGet("currencies")]
     public ActionResult<IEnumerable<CurrencyDto>> GetCurrencies() {
-        try {
-            var currencyDtos = _currencyService.GetAllCurrencies();
-            return Ok(currencyDtos);
-        }
-        catch (ServiceException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+        var currencyDtos = currencyService.GetAllCurrencies();
+        return Ok(currencyDtos);
     }
 
+    /// <summary>
+    /// Handles GET requests to retrieve a currency by its code.
+    /// </summary>
+    /// <param name="code">Currency code.</param>
+    /// <returns>Currency.</returns>
     [HttpGet("currency/{code?}")]
     public ActionResult<CurrencyDto> GetCurrency([ValidCurrencyCode] string? code) {
         if (string.IsNullOrEmpty(code))
-            return BadRequest(new {message = "Currency code is missing."});
-        try {
-            var currency = _currencyService.GetCurrency(code!);
-            if (currency == null)
-                return NotFound(new { message = "Currency is not found" });
-                
-            return Ok(currency);
-        }
-        catch (ServiceException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+            return BadRequest(new ErrorResponse(400, "Currency code is missing."));
+
+        var currency = currencyService.GetCurrency(code);
+        return Ok(currency);
     }
 
+    /// <summary>
+    /// Handles POST requests to add a new currency.
+    /// </summary>
+    /// <param name="createCurrencyDto">Currency form data.</param>
+    /// <returns>Created currency.</returns>
     [HttpPost("currencies")]
-    public IActionResult PostCurrency([FromForm] CreateCurrencyDto createCurrencyDto) {
-        try {
-            var addedCurrency = _currencyService.AddCurrency(createCurrencyDto);
-            return CreatedAtAction(
-                nameof(GetCurrency), new { code = createCurrencyDto.Code }, addedCurrency
-            );
-        }
-        catch (DuplicateDataException ex) {
-            return Conflict(new { message = ex.Message });
-        }
-        catch (ServiceException ex) {
-            return StatusCode(500, new { message = ex.Message });
-        }
+    public IActionResult PostCurrency([FromForm] CurrencyFormDto createCurrencyDto) {
+        var addedCurrency = currencyService.AddCurrency(createCurrencyDto);
+        return CreatedAtAction(
+            nameof(GetCurrency), new { code = createCurrencyDto.Code }, addedCurrency
+        );
     }
 }

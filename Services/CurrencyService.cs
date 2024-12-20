@@ -1,58 +1,51 @@
 using AutoMapper;
-using CurrencyExchange.Dto;
+using CurrencyExchange.Models.Dto;
 using CurrencyExchange.Exceptions;
-using CurrencyExchange.Models;
-using Microsoft.Data.Sqlite;
 using CurrencyExchange.Repositories.Interfaces;
 using CurrencyExchange.Services.Interfaces;
+using CurrencyExchange.Models.Domain;
 
 namespace CurrencyExchange.Services;
 
-public class CurrencyService : ICurrencyService {
-    private readonly ICurrenciesRepository _currenciesRepository;
-    private readonly IMapper _mapper;
-
-    public CurrencyService(ICurrenciesRepository currenciesRepository, IMapper mapper) {
-        _currenciesRepository = currenciesRepository;
-        _mapper = mapper;
-    }
-
+public sealed class CurrencyService(ICurrenciesRepository currenciesRepository, IMapper mapper)
+    : ICurrencyService {
+    /// <summary>
+    /// Gets all currencies.
+    /// </summary>
+    /// <returns>All currencies.</returns>
     public IEnumerable<CurrencyDto> GetAllCurrencies() {
-        try {
-            return _currenciesRepository.GetAllCurrencies()
-                .Select(_mapper.Map<CurrencyDto>);
-        }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            throw new ServiceException("Failed to get currencies", ex);
-        }
+        var currencies = currenciesRepository.GetAllCurrencies();
+        return mapper.Map<IEnumerable<CurrencyDto>>(currencies);
     }
 
-    public CurrencyDto? GetCurrency(string code) {
-        try {
-            var currency = _currenciesRepository.GetCurrency(code);
-            return currency != null
-                ? _mapper.Map<CurrencyDto>(currency)
-                : null;
-        }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            throw new ServiceException("Failed to get currency", ex);
-        }
+    /// <summary>
+    /// Gets a currency by its code.
+    /// </summary>
+    /// <param name="code">Currency code.</param>
+    /// <returns>Currency.</returns>
+    /// <exception cref="CurrencyNotFoundException">Thrown when currency is not found.</exception>
+    public CurrencyDto GetCurrency(string code) {
+        var currency = currenciesRepository.GetCurrency(code)
+            ?? throw new CurrencyNotFoundException(code);
+        return mapper.Map<CurrencyDto>(currency);
     }
 
-    public CurrencyDto AddCurrency(CreateCurrencyDto createCurrencyDto) {
+    /// <summary>
+    /// Adds a new currency.
+    /// </summary>
+    /// <param name="currencyForm">Currency form.</param>
+    /// <returns>Added currency.</returns>
+    /// <exception cref="ResourceAlreadyExistsException">Thrown when currency already exists.</exception>
+    public CurrencyDto AddCurrency(CurrencyFormDto currencyForm) {
         try {
-            var currency = _mapper.Map<Currency>(createCurrencyDto);
-            var addedCurrency = _currenciesRepository.AddCurrency(currency);
-            return _mapper.Map<CurrencyDto>(addedCurrency);
+            var currency = mapper.Map<Currency>(currencyForm);
+            var addedCurrency = currenciesRepository.AddCurrency(currency);
+            return mapper.Map<CurrencyDto>(addedCurrency);
         }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            if (ex.SqliteErrorCode == 19)
-                throw new DuplicateDataException("Currency already exists", ex);
-
-            throw new ServiceException("Failed to get currency", ex);
+        catch (DatabaseConflictException ex) {
+            throw new ResourceAlreadyExistsException(
+                $"Currency with code {currencyForm.Code} already exists", ex
+            );
         }
     }
 }

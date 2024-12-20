@@ -2,7 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CurrencyExchange.Validation;
 
-public partial class GreaterThanZeroAttribute : ValidationAttribute { 
+/// <summary>
+/// Custom validation attribute to ensure a value is greater than zero.
+/// Used to validate amount, exchange rate from request.
+/// </summary>
+public partial class GreaterThanZeroAttribute : ValidationAttribute {
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext) {
         if (value == null)
             return new ValidationResult("The value is missing.");

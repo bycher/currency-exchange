@@ -1,4 +1,4 @@
-using CurrencyExchange.Models;
+using CurrencyExchange.Models.Domain;
 
 namespace CurrencyExchange.Repositories.Interfaces;
 

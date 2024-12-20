@@ -1,111 +1,126 @@
-using CurrencyExchange.Dto;
+using CurrencyExchange.Models.Dto;
 using CurrencyExchange.Exceptions;
-using CurrencyExchange.Models;
-using Microsoft.Data.Sqlite;
+using CurrencyExchange.Models.Domain;
 using CurrencyExchange.Services.Interfaces;
 using CurrencyExchange.Repositories.Interfaces;
+using AutoMapper;
 
 namespace CurrencyExchange.Services;
 
-public class ExchangeRateService : IExchangeRateService {
-    private readonly IExchangeRatesRepository _exchangeRatesRepository;
-    private readonly ICurrencyService _currencyService;
-
-    public ExchangeRateService(
-        IExchangeRatesRepository exchangeRatesRepository, ICurrencyService currencyService
-    ) {
-        _exchangeRatesRepository = exchangeRatesRepository;
-        _currencyService = currencyService;
-    }
-
+/// <summary>
+/// Service for managing exchange rates.
+/// </summary>
+/// <param name="exchangeRatesRepository">Exchange rates repository.</param>
+/// <param name="currenciesService">Currencies service.</param>
+/// <param name="mapper">Mapper.</param>
+public sealed class ExchangeRateService(
+    IExchangeRatesRepository exchangeRatesRepository,
+    ICurrencyService currenciesService,
+    IMapper mapper
+) : IExchangeRateService {
+    /// <summary>
+    /// Gets all exchange rates.
+    /// </summary>
+    /// <returns>All exchange rates.</returns>
     public IEnumerable<ExchangeRateDto> GetAllExchangeRates() {
-        try {
-            var currencyDtosDict = _currencyService.GetAllCurrencies().ToDictionary(c => c.Id);
-
-            return _exchangeRatesRepository.GetAllExchangeRates()
-                .Select(er => ToExchangeRateDto(
-                    er, currencyDtosDict[er.BaseCurrencyId], currencyDtosDict[er.TargetCurrencyId]
-                )!);
-        }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            throw new ServiceException("Failed to get exchange rates", ex);
-        }
+        var exchangeRates = exchangeRatesRepository.GetAllExchangeRates();
+        return mapper.Map<IEnumerable<ExchangeRateDto>>(exchangeRates);
     }
 
-    public ExchangeRateDto? GetExchangeRate(string baseCurrencyCode, string targetCurrencyCode) {
-        try {
-            var baseCurrencyDto = _currencyService.GetCurrency(baseCurrencyCode);
-            var targetCurrencyDto = _currencyService.GetCurrency(targetCurrencyCode);
-            if (baseCurrencyDto == null || targetCurrencyDto == null)
-                return null;
+    /// <summary>
+    /// Gets an exchange rate for a given currency pair.
+    /// </summary>
+    /// <param name="baseCurrencyCode">Base currency code.</param>
+    /// <param name="targetCurrencyCode">Target currency code.</param>
+    /// <returns>Exchange rate.</returns>
+    public ExchangeRateDto GetExchangeRate(string baseCurrencyCode, string targetCurrencyCode) {
+        var (baseCurrency, targetCurrency) = GetCurrencyPair(baseCurrencyCode, targetCurrencyCode);
 
-            var exchangeRate = _exchangeRatesRepository.GetExchangeRate(
-                baseCurrencyDto.Id, targetCurrencyDto.Id
+        var exchangeRate = exchangeRatesRepository.GetExchangeRate(baseCurrency.Id, targetCurrency.Id)
+            ?? throw new ExchangeRateNotFoundException(baseCurrencyCode, targetCurrencyCode);
+            
+        return MapExchangeRateDto(exchangeRate, baseCurrency, targetCurrency);
+    }
+
+    /// <summary>
+    /// Adds a new exchange rate.
+    /// </summary>
+    /// <param name="exchangeRateForm">Exchange rate data from form.</param>
+    /// <returns>Added exchange rate.</returns>
+    public ExchangeRateDto AddExchangeRate(ExchangeRateFormDto exchangeRateForm) {
+        try {
+            var (baseCurrency, targetCurrency) = GetCurrencyPair(
+                exchangeRateForm.BaseCurrencyCode, exchangeRateForm.TargetCurrencyCode
             );
-            return ToExchangeRateDto(exchangeRate, baseCurrencyDto, targetCurrencyDto);
+            var exchangeRate = MapExchangeRate(exchangeRateForm, baseCurrency, targetCurrency);
+            exchangeRate = exchangeRatesRepository.AddExchangeRate(exchangeRate);
+            return MapExchangeRateDto(exchangeRate, baseCurrency, targetCurrency);
         }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            throw new ServiceException("Failed to get exchange rate", ex);
-        }
-    }
-
-    public ExchangeRateDto? AddExchangeRate(CreateExchangeRateDto createExchangeRateDto) {
-        try {
-            var baseCurrencyDto = _currencyService.GetCurrency(createExchangeRateDto.BaseCurrencyCode);
-            var targetCurrencyDto = _currencyService.GetCurrency(createExchangeRateDto.TargetCurrencyCode);
-            if (baseCurrencyDto == null || targetCurrencyDto == null)
-                return null;
-
-            var exchangeRate = new ExchangeRate {
-                BaseCurrencyId = baseCurrencyDto.Id,
-                TargetCurrencyId = targetCurrencyDto.Id,
-                Rate = createExchangeRateDto.Rate
-            };
-            var addedExchangeRate = _exchangeRatesRepository.AddExchangeRate(exchangeRate);
-            return ToExchangeRateDto(addedExchangeRate, baseCurrencyDto, targetCurrencyDto);
-        }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            if (ex.SqliteErrorCode == 19)
-                throw new DuplicateDataException("Exchange rate for currency pair already exists", ex);
-
-            throw new ServiceException("Failed to add the exchange rate", ex);
+        catch (DatabaseConflictException ex) {
+            throw new ResourceAlreadyExistsException(
+                $"Exchange rate for currency pair '{exchangeRateForm.BaseCurrencyCode}'/" +
+                $"'{exchangeRateForm.TargetCurrencyCode}' already exists", ex
+            );
         }
     }
 
-    public ExchangeRateDto? UpdateExchangeRate(CreateExchangeRateDto createExchangeRateDto) {
-        try {
-            var baseCurrencyDto = _currencyService.GetCurrency(createExchangeRateDto.BaseCurrencyCode);
-            var targetCurrencyDto = _currencyService.GetCurrency(createExchangeRateDto.TargetCurrencyCode);
-            if (baseCurrencyDto == null || targetCurrencyDto == null)
-                return null;
-
-            var exchangeRate = new ExchangeRate {
-                BaseCurrencyId = baseCurrencyDto.Id,
-                TargetCurrencyId = targetCurrencyDto.Id,
-                Rate = createExchangeRateDto.Rate
-            };
-            var updatedExchangeRate = _exchangeRatesRepository.UpdateExchangeRate(exchangeRate);
-            return ToExchangeRateDto(updatedExchangeRate, baseCurrencyDto, targetCurrencyDto);
-        }
-        catch (SqliteException ex) {
-            // TODO: add logging
-            throw new ServiceException("Failed to update the exchange rate", ex);
-        }
+    /// <summary>
+    /// Updates an existing exchange rate.
+    /// </summary>
+    /// <param name="form">Exchange rate data from form.</param>
+    /// <returns>Updated exchange rate.</returns>
+    public ExchangeRateDto UpdateExchangeRate(ExchangeRateFormDto form) {
+        var (baseCurrency, targetCurrency) = GetCurrencyPair(
+            form.BaseCurrencyCode, form.TargetCurrencyCode
+        );
+        var exchangeRate = MapExchangeRate(form, baseCurrency, targetCurrency);
+        exchangeRate = exchangeRatesRepository.UpdateExchangeRate(exchangeRate)
+            ?? throw new ExchangeRateNotFoundException(
+                form.BaseCurrencyCode, form.TargetCurrencyCode
+            );
+        return MapExchangeRateDto(exchangeRate, baseCurrency, targetCurrency);
     }
 
-    private static ExchangeRateDto? ToExchangeRateDto(
-        ExchangeRate? exchangeRate, CurrencyDto baseCurrencyDto, CurrencyDto targetCurrencyDto
+    /// <summary>
+    /// Gets a currency pair.
+    /// </summary>
+    /// <param name="baseCurrencyCode">Base currency code.</param>
+    /// <param name="targetCurrencyCode">Target currency code.</param>
+    /// <returns>Currency pair.</returns>
+    private (CurrencyDto, CurrencyDto) GetCurrencyPair(
+        string baseCurrencyCode, string targetCurrencyCode
+    ) => (
+        currenciesService.GetCurrency(baseCurrencyCode),
+        currenciesService.GetCurrency(targetCurrencyCode)
+    );
+
+    /// <summary>
+    /// Maps an exchange rate to a DTO.
+    /// </summary>
+    /// <param name="exchangeRate">Exchange rate.</param>
+    /// <param name="baseCurrency">Base currency (get from currencies service).</param>
+    /// <param name="targetCurrency">Target currency (get from currencies service).</param>
+    /// <returns>Mapped exchange rate.</returns>
+    private ExchangeRateDto MapExchangeRateDto(
+        ExchangeRate exchangeRate, CurrencyDto baseCurrency, CurrencyDto targetCurrency
+    ) => mapper.Map<ExchangeRateDto>(exchangeRate) with {
+        BaseCurrency = baseCurrency,
+        TargetCurrency = targetCurrency
+    };
+
+    /// <summary>
+    /// Maps an exchange rate form to an exchange rate.
+    /// </summary>
+    /// <param name="form">Exchange rate form.</param>
+    /// <param name="baseCurrency">Base currency (get from currencies service).</param>
+    /// <param name="targetCurrency">Target currency (get from currencies service).</param>
+    /// <returns>Mapped exchange rate.</returns>
+    private ExchangeRate MapExchangeRate(
+        ExchangeRateFormDto form, CurrencyDto baseCurrency, CurrencyDto targetCurrency
     ) {
-        return exchangeRate != null
-            ? new () {
-                Id = exchangeRate.Id,
-                BaseCurrency = baseCurrencyDto,
-                TargetCurrency = targetCurrencyDto,
-                Rate = exchangeRate.Rate
-            }
-            : null;
+        var exchangeRate = mapper.Map<ExchangeRate>(form);
+        exchangeRate.BaseCurrencyId = baseCurrency.Id;
+        exchangeRate.TargetCurrencyId = targetCurrency.Id;
+        return exchangeRate;
     }
 }
