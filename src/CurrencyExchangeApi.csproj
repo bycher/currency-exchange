@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>CurrencyExchange.Api</RootNamespace>
+    <UserSecretsId>fc441e5f-98d9-40d6-913e-1d7d75988223</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

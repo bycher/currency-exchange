@@ -7,9 +7,6 @@ using CurrencyExchange.Api.Validation;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration["ConnectionStrings:DefaultConnection"] =
-    $"Data Source={Environment.GetEnvironmentVariable("SQLITE_DB_PATH")}";
-
 builder.Services.AddAutoMapper(config => {
     config.AddProfile<CurrencyProfile>();
     config.AddProfile<ExchangeRateProfile>();
@@ -28,8 +25,22 @@ builder.Services
     .AddControllers(opt => opt.Filters.Add<ValidateModelFilter>())
     .ConfigureApiBehaviorOptions(opt => opt.SuppressModelStateInvalidFilter = true);  
 
+builder.Services.AddCors(opt => opt.AddDefaultPolicy(
+    builder => builder
+        .AllowAnyOrigin()
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+    )
+);
+
 var app = builder.Build();
 
+if (app.Environment.IsProduction()) {
+    app.UseHsts();
+}
+if (app.Environment.IsDevelopment()) {
+    app.UseCors();
+}
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.MapControllers();

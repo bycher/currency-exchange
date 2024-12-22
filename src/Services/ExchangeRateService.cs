@@ -23,8 +23,11 @@ public sealed class ExchangeRateService(
     /// </summary>
     /// <returns>All exchange rates.</returns>
     public IEnumerable<ExchangeRateResponse> GetAllExchangeRates() {
+        var currencies = currenciesService.GetAllCurrencies().ToDictionary(c => c.Id);
         var exchangeRates = exchangeRatesRepository.GetAllExchangeRates();
-        return mapper.Map<IEnumerable<ExchangeRateResponse>>(exchangeRates);
+        return exchangeRates.Select(er =>
+            MapExchangeRateDto(er, currencies[er.BaseCurrencyId], currencies[er.TargetCurrencyId])
+        );
     }
 
     /// <summary>

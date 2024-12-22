@@ -68,7 +68,11 @@ public class ExchangeRatesController(IExchangeRateService exchangeRateService) :
 
         var (baseCode, targetCode) = ParseCurrencyCodePair(codePair);
         var updatedExchangeRate = exchangeRateService.UpdateExchangeRate(
-            new CreateExchangeRateRequest(baseCode, targetCode, rate)
+            new CreateExchangeRateRequest {
+                BaseCurrencyCode = baseCode,
+                TargetCurrencyCode = targetCode,
+                Rate = rate
+            }
         );
         return Ok(updatedExchangeRate);
     }

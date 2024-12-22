@@ -5,24 +5,22 @@ namespace CurrencyExchange.Api.Models.Requests;
 /// <summary>
 /// Exchange rate data form.
 /// </summary>
-public class CreateExchangeRateRequest(
-    string baseCurrencyCode, string targetCurrencyCode, double rate
-) {
+public class CreateExchangeRateRequest {
     /// <summary>
     /// Base currency code.
     /// </summary>
     [ValidCurrencyCode]
-    public string BaseCurrencyCode { get; init; } = baseCurrencyCode;
+    public required string BaseCurrencyCode { get; init; }
 
     /// <summary>
     /// Target currency code.
     /// </summary>
     [ValidCurrencyCode]
-    public string TargetCurrencyCode { get; init; } = targetCurrencyCode;
+    public required string TargetCurrencyCode { get; init; }
 
     /// <summary>
     /// Exchange rate.
     /// </summary>
     [GreaterThanZero]
-    public double Rate { get; init; } = rate;
+    public required double Rate { get; init; }
 }
