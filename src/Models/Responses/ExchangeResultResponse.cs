@@ -17,15 +17,15 @@ public class ExchangeResultResponse {
     /// <summary>
     /// Exchange rate.
     /// </summary>
-    public required double Rate { get; init; }
+    public required decimal Rate { get; init; }
 
     /// <summary>
     /// Amount to exchange.
     /// </summary>
-    public required double Amount { get; init; }
+    public required decimal Amount { get; init; }
 
     /// <summary>
     /// Converted amount by exchange rate.
     /// </summary>
-    public double ConvertedAmount => Rate * Amount;
+    public decimal ConvertedAmount => Rate * Amount;
 }

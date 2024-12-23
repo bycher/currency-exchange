@@ -88,6 +88,6 @@ public sealed class ExchangeRatesRepository(IConfiguration configuration)
         Id = reader.GetInt32(0),
         BaseCurrencyId = reader.GetInt32(1),
         TargetCurrencyId = reader.GetInt32(2),
-        Rate = reader.GetDouble(3),
+        Rate = reader.GetDecimal(3),
     };
 }

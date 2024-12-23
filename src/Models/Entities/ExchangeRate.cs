@@ -17,5 +17,5 @@ public class ExchangeRate : Entity {
     /// <summary>
     /// Exchange rate.
     /// </summary>
-    public double Rate { get; set; }
+    public decimal Rate { get; set; }
 }

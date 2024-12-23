@@ -22,5 +22,5 @@ public class ExchangeRateResponse {
     /// <summary>
     /// Exchange rate.
     /// </summary>
-    public required double Rate { get; init; }
+    public required decimal Rate { get; init; }
 }

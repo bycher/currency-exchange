@@ -4,6 +4,7 @@ using CurrencyExchange.Api.Mapping;
 using CurrencyExchange.Api.Middlewares;
 using CurrencyExchange.Api.Services;
 using CurrencyExchange.Api.Validation;
+using Microsoft.AspNetCore.Localization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,17 +24,26 @@ builder.Services.AddScoped<IExchangeService, ExchangeService>();
 
 builder.Services
     .AddControllers(opt => opt.Filters.Add<ValidateModelFilter>())
-    .ConfigureApiBehaviorOptions(opt => opt.SuppressModelStateInvalidFilter = true);  
+    .ConfigureApiBehaviorOptions(opt => opt.SuppressModelStateInvalidFilter = true);
 
-builder.Services.AddCors(opt => opt.AddDefaultPolicy(
-    builder => builder
-        .AllowAnyOrigin()
-        .AllowAnyMethod()
-        .AllowAnyHeader()
-    )
-);
+// To test API from frontend (in development)
+if (builder.Environment.IsDevelopment()) {
+    builder.Services.AddCors(opt => opt.AddDefaultPolicy(
+        builder => builder
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+    ));
+}
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// To use decimal point as a separator
+app.UseRequestLocalization(new RequestLocalizationOptions {
+    DefaultRequestCulture = new RequestCulture("en-US")
+});
 
 if (app.Environment.IsProduction()) {
     app.UseHsts();
@@ -41,7 +51,7 @@ if (app.Environment.IsProduction()) {
 if (app.Environment.IsDevelopment()) {
     app.UseCors();
 }
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 app.UseHttpsRedirection();
 app.MapControllers();
 

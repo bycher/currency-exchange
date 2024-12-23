@@ -18,7 +18,7 @@ public sealed class ExchangeService(IExchangeRateService exchangeRateService) : 
     /// Thrown when we can't exchange money neither directly, nor reversed, nor cross.
     /// </exception>
     public ExchangeResultResponse Exchange(
-        string baseCurrencyCode, string targetCurrencyCode, double amount
+        string baseCurrencyCode, string targetCurrencyCode, decimal amount
     ) {
         return DirectExchange(baseCurrencyCode, targetCurrencyCode, amount)
             ?? ReversedExchange(baseCurrencyCode, targetCurrencyCode, amount)
@@ -37,7 +37,7 @@ public sealed class ExchangeService(IExchangeRateService exchangeRateService) : 
     /// <param name="amount">Amount of money to exchange.</param>
     /// <returns>Response with exchange result data or null if exchange rate is not found.</returns>
     private ExchangeResultResponse? DirectExchange(
-        string baseCurrencyCode, string targetCurrencyCode, double amount
+        string baseCurrencyCode, string targetCurrencyCode, decimal amount
     ) {
         return TryExecuteExchange(() => {
             var exchangeRate = exchangeRateService.GetExchangeRate(
@@ -60,7 +60,7 @@ public sealed class ExchangeService(IExchangeRateService exchangeRateService) : 
     /// <param name="amount">Amount of money to exchange.</param>
     /// <returns>Response with exchange result data or null if exchange rate is not found.</returns>
     private ExchangeResultResponse? ReversedExchange(
-        string baseCurrencyCode, string targetCurrencyCode, double amount
+        string baseCurrencyCode, string targetCurrencyCode, decimal amount
     ) {
         return TryExecuteExchange(() => {
             var reversedExchangeRate = exchangeRateService.GetExchangeRate(
@@ -83,7 +83,7 @@ public sealed class ExchangeService(IExchangeRateService exchangeRateService) : 
     /// <param name="amount">Amount of money to exchange.</param>
     /// <returns>Response with exchange result data or null if exchange rate is not found.</returns>
     private ExchangeResultResponse? CrossExchange(
-        string baseCurrencyCode, string targetCurrencyCode, double amount
+        string baseCurrencyCode, string targetCurrencyCode, decimal amount
     ) {
         return TryExecuteExchange(() => {
             var usdToBaseExchangeRate = exchangeRateService.GetExchangeRate(

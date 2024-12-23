@@ -21,7 +21,7 @@ public class ExchangeController(IExchangeService exchangeService) : ControllerBa
     /// <returns>A result containing the converted amount and currency pair</returns>
     [HttpGet]
     public ActionResult<ExchangeResultResponse> Exchange(
-        [ValidCurrencyCode] string from, [ValidCurrencyCode] string to, [GreaterThanZero] double amount
+        [ValidCurrencyCode] string from, [ValidCurrencyCode] string to, [GreaterThanZero] decimal amount
     ) {
         var exchangeResult = exchangeService.Exchange(from, to, amount);
         return Ok(exchangeResult);

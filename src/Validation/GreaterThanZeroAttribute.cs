@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 
 namespace CurrencyExchange.Api.Validation;
 
@@ -11,10 +12,12 @@ public partial class GreaterThanZeroAttribute : ValidationAttribute {
         if (value == null)
             return new ValidationResult("The value is missing.");
 
-        if (!double.TryParse(value.ToString(), out var valueAsDouble))
-            return new ValidationResult("The value must be a double.");
+        if (!decimal.TryParse(
+            value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var valueAsDecimal)
+        )
+            return new ValidationResult("The value must be a decimal.");
 
-        if (valueAsDouble <= 0)
+        if (valueAsDecimal <= 0)
             return new ValidationResult("The number must be greater than 0.");
 
         return ValidationResult.Success;

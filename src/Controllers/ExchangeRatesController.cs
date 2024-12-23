@@ -61,7 +61,7 @@ public class ExchangeRatesController(IExchangeRateService exchangeRateService) :
     /// <returns>Updated exchange rate.</returns>
     [HttpPatch("exchangeRate/{codePair?}")]
     public ActionResult<ExchangeRateResponse> PatchExchangeRate(
-        [ValidCurrencyCodePair] string? codePair, [FromForm][GreaterThanZero] double rate
+        [ValidCurrencyCodePair] string? codePair, [FromForm][GreaterThanZero] decimal rate
     ) {
         if (string.IsNullOrEmpty(codePair))
             return BadRequest(new ErrorResponse(400, "Currency code pair is missing."));
