@@ -1,5 +1,6 @@
 bin
 obj
 .vscode
-publish
+*.db
 *.code-workspace
+deploy.sh
