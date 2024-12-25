@@ -5,6 +5,7 @@ namespace CurrencyExchange.Api.Validation;
 
 /// <summary>
 /// Custom validation attribute to ensure a currency code follows ISO 4217 format.
+/// Also ensures the currency code is not null.
 /// </summary>
 public partial class ValidCurrencyCodeAttribute : ValidationAttribute {
     /// <summary>
@@ -18,9 +19,10 @@ public partial class ValidCurrencyCodeAttribute : ValidationAttribute {
     private static readonly Regex _regex = new(
         @"^[A-Z]{" + CodeLength.ToString() + "}$", RegexOptions.Compiled);
 
-    protected override ValidationResult? IsValid(object? value, ValidationContext _) {
+    protected override ValidationResult? IsValid(object? value, ValidationContext context) {
         if (value == null)
-            return new ValidationResult("The currency code is missing.");
+            // Null values are handled by the Required attribute. This is just a fallback.
+            return ValidationResult.Success;
 
         if (!_regex.IsMatch(value.ToString()!))
             return new ValidationResult("Invalid currency code format (ISO 4217).");

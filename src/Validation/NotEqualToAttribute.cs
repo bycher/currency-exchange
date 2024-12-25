@@ -13,7 +13,7 @@ public class NotEqualToAttribute(string otherProperty) : ValidationAttribute {
             return new ValidationResult($"Property '{otherProperty}' not found.");
 
         var otherValue = otherPropertyInfo.GetValue(validationContext.ObjectInstance);
-        return Equals(value, otherValue)
+        return value != null && Equals(value, otherValue)
             ? new ValidationResult($"The value must not be equal to '{otherProperty}'.")
             : ValidationResult.Success;
     }
